@@ -36,9 +36,17 @@ var AreaModel = function() {
       if (!this.center) {
           return false;
       }
-      if(days1 < this.center.startDate && this.center.endDate < days2)
-          return true;
-      return false;
+      if (days1 < days2) {
+          if (days1 < this.center.startDate && this.center.endDate < days2)
+              return true;
+          return false;
+      }
+      else
+      {
+          if (days2 < this.center.startDate && this.center.endDate < days1)
+              return true;
+          return false;
+      }
   }
 
   //期間内の曜日の日数を計算します。
@@ -111,8 +119,8 @@ var TrashModel = function(_lable, _cell, remarks) {
     } else if (this.dayCell[j].length == 2 && this.dayCell[j].substr(0,1) != "*") {
       result_text += "第" + this.dayCell[j].charAt(1) + this.dayCell[j].charAt(0) + "曜日 ";
     } else if (this.dayCell[j].length == 2 && this.dayCell[j].substr(0,1) == "*") {
-    } else if (this.dayCell[j].substr(0, 1) == "E") {
-        var ecell = this.dayCell[j].split('S');
+    } else if (this.dayCell[j].substr(0, 1) == "e") {
+        var ecell = this.dayCell[j].split('w');
         if (ecell[0].substr(1) === "2")
             result_text += "隔週";
         else
@@ -240,7 +248,7 @@ var TrashModel = function(_lable, _cell, remarks) {
                 }
             } else if (this.regularFlg == "2") {
                 //隔週、4週間毎に対応
-                var dm = day_mix[j].split('S');
+                var dm = day_mix[j].split('w');
                 var peoriod = parseInt(dm[0].substr(1))
                 var startday = getDays(parseInt(dm[1].substr(0, 4)),
                     parseInt(dm[1].substr(4, 2)) - 1,
@@ -248,9 +256,10 @@ var TrashModel = function(_lable, _cell, remarks) {
                 var day = DateToDays(today);
                 if (areaObj.isBlankDay(day))
                     day = areaObj.center.endDate + 1;
-                var weeks = (Math.floor((day - startday) / 7) -
-                    (areaObj.isInPeoriod(startday, day) ? areaObj.numberofDay(getDayOfWeek(startday)) : 0)) % peoriod;
-                var d = (day - startday) % 7
+                var weeks = (((Math.floor((day - startday) / 7)) % peoriod) + peoriod) % peoriod;
+                weeks -= areaObj.isInPeoriod(startday, day) ? areaObj.numberofDay(getDayOfWeek(startday)) : 0;
+                weeks = weeks % peoriod;
+                var d = ((day - startday) % 7 + 7) % 7;
                 if (weeks == 0 && d == 0)
                 {
                     day_list.push(day);
@@ -564,10 +573,10 @@ $(function() {
     var ableSVG = (window.SVGAngle !== void 0);
     //var ableSVG = false;  // SVG未使用の場合、descriptionの1項目目を使用
     var areaModel = areaModels[row_index];
-      //ここで日付を設定すれば、任意の日付でテストができるように修正した
     var today = new Date();
     var todayTime = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
-    todayTime = Date.UTC(2015, 12 - 1, 31);
+    //ここで日付を設定すれば、任意の日付でテストが可能
+    // todayTime = Date.UTC(2015, 12 - 1, 31);
     today.setTime(todayTime);
     //直近の一番近い日付を計算します。
     areaModel.calcMostRect(today);
@@ -765,4 +774,3 @@ $(function() {
   }
   updateAreaList();
 });
-
