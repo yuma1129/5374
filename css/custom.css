@@ -12,6 +12,22 @@ a:hover {
 .accordion-inner {
 	padding: 9px 15px;
 }
+.accordion-inner ul{
+	padding-left: 18px;
+}
+.examples{
+	color: #ffffff;
+}
+.examples a {
+    color:aqua;
+}
+.target {
+    display: none;
+}
+#help a {
+    color: #4183C4;    
+}
+
 
 /*!
  * ゴミ収集の情報

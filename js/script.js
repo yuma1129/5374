@@ -247,40 +247,57 @@ var TrashModel = function(_lable, _cell, remarks) {
                     }
                 }
             } else if (this.regularFlg == "2") {
-                //隔週、4週間毎に対応
+                //隔週、4週間毎に対応、一応先付けの収集日設定にも対応
                 var dm = day_mix[j].split('w');
                 var peoriod = parseInt(dm[0].substr(1))
                 var startday = getDays(parseInt(dm[1].substr(0, 4)),
                     parseInt(dm[1].substr(4, 2)) - 1,
                     parseInt(dm[1].substr(6, 2)));
                 var day = DateToDays(today);
-                if (areaObj.isBlankDay(day))
+                if (areaObj.isBlankDay(day)) 
                     day = areaObj.center.endDate + 1;
-                var weeks = (((Math.floor((day - startday) / 7)) % peoriod) + peoriod) % peoriod;
-                weeks -= areaObj.isInPeoriod(startday, day) ? areaObj.numberofDay(getDayOfWeek(startday)) : 0;
-                weeks = weeks % peoriod;
+
+                var weeks = Math.floor((day - startday) / 7);
+                if (WeekShift) {
+                    if (day > startday)
+                        weeks -= areaObj.isInPeoriod(startday, day) ? areaObj.numberofDay(getDayOfWeek(startday)) : 0;
+                    else
+                        weeks += areaObj.isInPeoriod(startday, day) ? areaObj.numberofDay(getDayOfWeek(startday)) : 0;
+                }
+                weeks = ((weeks % peoriod) + peoriod) % peoriod;
+                var d = (day - startday) % 7;
                 var d = ((day - startday) % 7 + 7) % 7;
                 if (weeks == 0 && d == 0)
                 {
                     day_list.push(day);
                     break;
+                    
                 }
                 if (d != 0) {
                     day += 7 - d;
-                    weeks += areaObj.isBlankDay(day)? 0: 1;                    
+                    weeks += (WeekShift && areaObj.isBlankDay(day)) ? 0 : 1;
                 }
                 if (weeks == peoriod) {
-                    day_list.push(day);
-                    break;
+                    if (!areaObj.isBlankDay(day)) {
+                        day_list.push(day);
+                        break;
+                    }
+                    else
+                        weeks = 0;
                 }
-                while (weeks < peoriod)
+                while (true)
                 {
                     day += 7;
-                    if (! areaObj.isBlankDay(day)) {
-                        weeks += 1;
+                    weeks += (WeekShift && areaObj.isBlankDay(day)) ? 0 : 1;
+                    if (weeks == peoriod) {
+                        if (!areaObj.isBlankDay(day)) {
+                            day_list.push(day);
+                            break;
+                        }
+                        else
+                            weeks = 0;
                     }
                 }
-                day_list.push(day);
             }
         }
     } else {
@@ -399,13 +416,14 @@ function getDayOfWeek(days)
     return (days + 4) % 7 
 }
 
+//月の取得
 function getMonthOfDays(days)
 {
     var dt = new Date();
     dt.setTime(days * 86400000);
     return dt.getUTCMonth();
 }
-
+//文字列に変換
 function daysToString(days)
 {
     var dt = new Date();
@@ -456,76 +474,100 @@ $(function() {
 
   function updateAreaList() {
       csvToArray("data/area_days.csv", function (tmpdays) {
-          csvToArray("data/area.csv", function (tmparea) {
-              var area_days_label = tmpdays.shift();
-              tmparea.shift();
-              var rowdays;
-              for (var i in tmparea) {
-                  var row = tmparea[i];
+          if (IsUseArea) {
+              csvToArray("data/area.csv", function (tmparea) {
+                  var area_days_label = tmpdays.shift();
+                  tmparea.shift();
+                  var rowdays;
+                  for (var i in tmparea) {
+                      var row = tmparea[i];
+                      var area = new AreaModel();
+                      area.label = row[0];
+                      area.centerName = row[1];
+
+                      var collectionArea = row[2];
+                      for (var j in tmpdays) {
+                          if (tmpdays[j][0] === collectionArea) {
+                              rowdays = tmpdays[j];
+                              break;
+                          }
+                      }
+
+                      areaModels.push(area);
+                      //２列目以降の処理
+                      for (var r = 1; r < 1 + MaxDescription; r++) {
+                          if (area_days_label[r]) {
+                              var trash = new TrashModel(area_days_label[r], rowdays[r], remarks);
+                              area.trash.push(trash);
+                          }
+                      }
+                  }
+                  updateCenter();
+              });
+          }
+          else
+          {
+              var area_days_label = tmp.shift();
+              for (var i in tmp) {
+                  var row = tmp[i];
                   var area = new AreaModel();
                   area.label = row[0];
                   area.centerName = row[1];
 
-                  var collectionArea = row[2];
-                  for (var j in tmpdays)
-                  {
-                      if(tmpdays[j][0] === collectionArea)
-                      {
-                          rowdays = tmpdays[j];
-                          break;
-                      }
-                  }
-
                   areaModels.push(area);
                   //２列目以降の処理
-                  for (var r = 1; r < 1 + MaxDescription; r++) {
+                  for (var r = 2; r < 2 + MaxDescription; r++) {
                       if (area_days_label[r]) {
-                          var trash = new TrashModel(area_days_label[r], rowdays[r], remarks);
+                          var trash = new TrashModel(area_days_label[r], row[r], remarks);
                           area.trash.push(trash);
                       }
                   }
               }
+              updateCenter();
+          }
+      });
+  }
 
-              csvToArray("data/center.csv", function (tmp) {
-                  //ゴミ処理センターのデータを解析します。
-                  //表示上は現れませんが、
-                  //金沢などの各処理センターの休止期間分は一週間ずらすという法則性のため
-                  //例えば第一金曜日のときは、一周ずらしその月だけ第二金曜日にする
-                  tmp.shift();
-                  for (var i in tmp) {
-                      var row = tmp[i];
+  function updateCenter()
+  {
+      csvToArray("data/center.csv", function (tmp) {
+          //ゴミ処理センターのデータを解析します。
+          //表示上は現れませんが、
+          //金沢などの各処理センターの休止期間分は一週間ずらすという法則性のため
+          //例えば第一金曜日のときは、一周ずらしその月だけ第二金曜日にする
+          tmp.shift();
+          for (var i in tmp) {
+              var row = tmp[i];
 
-                      var center = new CenterModel(row);
-                      center_data.push(center);
-                  }
-                  //ゴミ処理センターを対応する各地域に割り当てます。
-                  for (var i in areaModels) {
-                      var area = areaModels[i];
-                      area.setCenter(center_data);
-                  };
-                  //エリアとゴミ処理センターを対応後に、表示のリストを生成する。
-                  //ListメニューのHTML作成
-                  var selected_name = getSelectedAreaName();
-                  var area_select_form = $("#select_area");
-                  var select_html = "";
-                  select_html += '<option value="-1">地域を選択してください</option>';
-                  for (var row_index in areaModels) {
-                      var area_name = areaModels[row_index].label;
-                      var selected = (selected_name == area_name) ? 'selected="selected"' : "";
+              var center = new CenterModel(row);
+              center_data.push(center);
+          }
+          //ゴミ処理センターを対応する各地域に割り当てます。
+          for (var i in areaModels) {
+              var area = areaModels[i];
+              area.setCenter(center_data);
+          };
+          //エリアとゴミ処理センターを対応後に、表示のリストを生成する。
+          //ListメニューのHTML作成
+          var selected_name = getSelectedAreaName();
+          var area_select_form = $("#select_area");
+          var select_html = "";
+          select_html += '<option value="-1">地域を選択してください</option>';
+          for (var row_index in areaModels) {
+              var area_name = areaModels[row_index].label;
+              var selected = (selected_name == area_name) ? 'selected="selected"' : "";
 
-                      select_html += '<option value="' + row_index + '" ' + selected + " >" + area_name + "</option>";
-                  }
+              select_html += '<option value="' + row_index + '" ' + selected + " >" + area_name + "</option>";
+          }
 
-                  //デバッグ用
-                  if (typeof dump == "function") {
-                      dump(areaModels);
-                  }
-                  //HTMLへの適応
-                  area_select_form.html(select_html);
-                  area_select_form.change();
+          //デバッグ用
+          if (typeof dump == "function") {
+              dump(areaModels);
+          }
+          //HTMLへの適応
+          area_select_form.html(select_html);
+          area_select_form.change();
 
-              });
-          });
       });
   }
 
@@ -544,23 +586,27 @@ $(function() {
         descriptions.push(new DescriptionModel(data[i]));
       }
 
-      csvToArray("data/target.csv", function(data) {
+      if (TargetSettings == null) {
+          csvToArray("data/target.csv", function (data) {
 
-        data.shift();
-        for (var i in data) {
-          var row = new TargetRowModel(data[i]);
-          for (var j = 0; j < descriptions.length; j++) {
-            //一致してるものに追加する。
-            if (descriptions[j].label == row.label) {
-              descriptions[j].targets.push(row);
-              break;
-            }
-          };
-        }
-        after_action();
-        $("#accordion2").show();
+              data.shift();
+              for (var i in data) {
+                  var row = new TargetRowModel(data[i]);
+                  for (var j = 0; j < descriptions.length; j++) {
+                      //一致してるものに追加する。
+                      if (descriptions[j].label == row.label) {
+                          descriptions[j].f.push(row);
+                          break;
+                      }
+                  };
+              }
+              after_action();
+              $("#accordion2").show();
 
-      });
+          });
+      }
+      after_action();
+      $("#accordion2").show();
 
     });
 
@@ -574,10 +620,14 @@ $(function() {
     //var ableSVG = false;  // SVG未使用の場合、descriptionの1項目目を使用
     var areaModel = areaModels[row_index];
     var today = new Date();
-    var todayTime = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
-    //ここで日付を設定すれば、任意の日付でテストが可能
-    // todayTime = Date.UTC(2015, 12 - 1, 31);
-    today.setTime(todayTime);
+    if (TestDate == null)
+    {
+        var t = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+        today.setTime(t);
+    }
+    else
+        today.setTime(TestDate);;
+    
     //直近の一番近い日付を計算します。
     areaModel.calcMostRect(today);
     //トラッシュの近い順にソートします。
@@ -599,29 +649,36 @@ $(function() {
        if (description.label != trash.label) {
           continue;
         }
-
           var target_tag = "";
           var furigana = "";
-          var target_tag = "";
-          var targets = description.targets;
-          for (var j in targets) {
-            var target = targets[j];
-            if (furigana != target.furigana) {
-              if (furigana != "") {
-                target_tag += "</ul>";
+
+          if (TargetSettings === null) {
+              //ゴミの分別を target.csv から読み込み場合
+              var targets = description.targets;
+              for (var j in targets) {
+                  var target = targets[j];
+                  if (furigana != target.furigana) {
+                      if (furigana != "") {
+                          target_tag += "</ul>";
+                      }
+
+                      furigana = target.furigana;
+
+                      target_tag += '<h4 class="initials">' + furigana + "</h4>";
+                      target_tag += "<ul>";
+                  }
+
+                  target_tag += '<li style="list-style:none;">' + target.name + "</li>";
+                  target_tag += '<p class="note">' + target.notice + "</p>";
               }
 
-              furigana = target.furigana;
-
-              target_tag += '<h4 class="initials">' + furigana + "</h4>";
-              target_tag += "<ul>";
-            }
-
-            target_tag += '<li style="list-style:none;">' + target.name + "</li>";
-            target_tag += '<p class="note">' + target.notice + "</p>";
+              target_tag += "</ul>";
           }
-
-          target_tag += "</ul>";
+          else {
+              //ゴミの分別を index.html から読み込み
+              var tg = TargetSettings[description.label];
+              target_tag = document.getElementById(tg).innerHTML;
+          }
 
           var dateLabel = trash.getDateLabel();
           //あと何日かを計算する処理です。
