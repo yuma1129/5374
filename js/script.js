@@ -517,6 +517,18 @@ $(function() {
     //var ableSVG = false;  // SVG未使用の場合、descriptionの1項目目を使用
     var areaModel = areaModels[row_index];
     var today = new Date();
+    
+    if (TestDate == null)
+    {
+        var t = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+        today.setTime(t);
+    }
+    else
+        today.setTime(TestDate);;
+    
+    
+    
+    
     //直近の一番近い日付を計算します。
     areaModel.calcMostRect();
     //トラッシュの近い順にソートします。
