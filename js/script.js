@@ -518,13 +518,9 @@ $(function() {
     var areaModel = areaModels[row_index];
     var today = new Date();
     
-    if (TestDate == null)
-    {
         var t = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
         today.setTime(t);
-    }
-    else
-        today.setTime(TestDate);;
+ 
     
     
     
