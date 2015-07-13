@@ -229,7 +229,7 @@ var TrashModel = function(_lable, _cell, remarks) {
                 }
             } else if (this.regularFlg == "2") {
                 //隔週、4週間毎に対応、一応先付けの収集日設定にも対応
-                var dm = day_mix[j].split('w');
+                var dm = day_mix[j].split('.');
                 var peoriod = parseInt(dm[0].substr(1))
                 var startday = getDays(parseInt(dm[1].substr(0, 4)),
                     parseInt(dm[1].substr(4, 2)) - 1,
