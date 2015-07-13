@@ -85,7 +85,7 @@ var AreaModel = function() {
 /**
   各ゴミのカテゴリを管理するクラスです。
 */
-var TrashModel = function(_lable, _cell, remarks) {
+var TrashModel = function(_label, _cell, remarks) {
   this.remarks = remarks;
   this.dayLabel;
   this.mostRecent;
@@ -106,7 +106,7 @@ var TrashModel = function(_lable, _cell, remarks) {
   for (var m in mm) {
     this.mflag[mm[m] - 1] = 1;
   }
-  this.label = _lable;
+  this.label = _label;
   this.description;
   this.regularFlg = 1;      // 定期回収フラグ（デフォルトはオン:1）
 
