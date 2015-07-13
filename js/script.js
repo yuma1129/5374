@@ -98,7 +98,7 @@ var TrashModel = function(_lable, _cell, remarks) {
     } 
     /*徳島版より引用*/
     else if (this.dayCell[j].substr(0, 1) == "e") {
-        var ecell = this.dayCell[j].split('w');
+        var ecell = this.dayCell[j].split('.');
         if (ecell[0].substr(1) === "2")
             result_text += "隔週";
         else
