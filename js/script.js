@@ -88,7 +88,7 @@ var TrashModel = function(_lable, _cell, remarks) {
 
   var result_text = "";
   var today = new Date();
-
+  var day_enum = ["日", "月", "火", "水", "木", "金", "土"];
   for (var j in this.dayCell) {
     if (this.dayCell[j].length == 1) {
       result_text += "毎週" + this.dayCell[j] + "曜日 ";
