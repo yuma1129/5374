@@ -95,7 +95,23 @@ var TrashModel = function(_lable, _cell, remarks) {
     } else if (this.dayCell[j].length == 2 && this.dayCell[j].substr(0,1) != "*") {
       result_text += "第" + this.dayCell[j].charAt(1) + this.dayCell[j].charAt(0) + "曜日 ";
     } else if (this.dayCell[j].length == 2 && this.dayCell[j].substr(0,1) == "*") {
-    } else {
+    } 
+    /*徳島版より引用*/
+    else if (this.dayCell[j].substr(0, 1) == "e") {
+        var ecell = this.dayCell[j].split('w');
+        if (ecell[0].substr(1) === "2")
+            result_text += "隔週";
+        else
+            result_text += ecell[0].substr(1) + "週毎";
+        var year = parseInt(ecell[1].substr(0, 4));
+        var month = parseInt(ecell[1].substr(4, 2)) - 1;
+        var day = parseInt(ecell[1].substr(6, 2));
+        var date = new Date(year, month, day);
+        result_text += day_enum[date.getDay()] + "曜日";
+        this.regularFlg = "2";
+    }
+    /*ここまで*/
+    else {
       // 不定期回収の場合（YYYYMMDD指定）
       result_text = "不定期 ";
       this.regularFlg = 0;  // 定期回収フラグオフ
