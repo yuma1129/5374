@@ -156,79 +156,126 @@ var TrashModel = function(_lable, _cell, remarks) {
   このゴミの年間のゴミの日を計算します。
   センターが休止期間がある場合は、その期間１週間ずらすという実装を行っております。
 */
-  this.calcMostRect = function(areaObj) {
+  this.calcMostRect = function(areaObj, today) {
     var day_mix = this.dayCell;
     var result_text = "";
     var day_list = new Array();
-
-    // 定期回収の場合
-    if (this.regularFlg == 1) {
-
-      var today = new Date();
-
-      // 12月 +3月　を表現
-      for (var i = 0; i < MaxMonth; i++) {
-
-        var curMonth = today.getMonth() + i;
-        var curYear = today.getFullYear() + Math.floor(curMonth / 12);
-        var month = (curMonth % 12) + 1;
-
-        // 収集が無い月はスキップ
-        if (this.mflag[month - 1] == 0) {
-            continue;
-        }
+    
+        // 定期回収の場合
+    if (this.regularFlg > 0) {
+        //隔週と他の回収との混合を可能にした
         for (var j in day_mix) {
-          //休止期間だったら、今後一週間ずらす。
-          var isShift = false;
+            if (this.regularFlg == 1) {
+                // 12月 +3月　を表現
+                for (var i = 0; i < MaxMonth; i++) {
+                    var curMonth = today.getUTCMonth() + i;
+                    var curYear = today.getUTCFullYear() + Math.floor(curMonth / 12);
+                    var month = (curMonth % 12) + 1;
 
-          //week=0が第1週目です。
-          for (var week = 0; week < 5; week++) {
-            //4月1日を起点として第n曜日などを計算する。
-            var date = new Date(curYear, month - 1, 1);
-            var d = new Date(date);
-            //コンストラクタでやろうとするとうまく行かなかった。。
-            //
-            //4月1日を基準にして曜日の差分で時間を戻し、最大５週までの増加させて毎週を表現
-            d.setTime(date.getTime() + 1000 * 60 * 60 * 24 *
-              ((7 + getDayIndex(day_mix[j].charAt(0)) - date.getDay()) % 7) + week * 7 * 24 * 60 * 60 * 1000
-            );
-            //年末年始のずらしの対応
-            //休止期間なら、今後の日程を１週間ずらす
-            if (areaObj.isBlankDay(d)) {
-              if (WeekShift) {
-                isShift = true;
-              } else {
-                continue;
-              }
-            }
-            if (isShift) {
-              d.setTime(d.getTime() + 7 * 24 * 60 * 60 * 1000);
-            }
-            //同じ月の時のみ処理したい
-            if (d.getMonth() != (month - 1) % 12) {
-              continue;
-            }
-            //特定の週のみ処理する
-            if (day_mix[j].length > 1) {
-              if ((week != day_mix[j].charAt(1) - 1) || ("*" == day_mix[j].charAt(0))) {
-                continue;
-              }
-            }
+                    // 収集が無い月はスキップ
+                    if (this.mflag[month - 1] == 0) {
+                        continue;
+                    }
 
-            day_list.push(d);
-          }
+                    //休止期間だったら、今後一週間ずらす。
+                    var isShift = false;
+
+                    //week=0が第1週目です。
+
+                    var date = getDays(curYear, month - 1, 1);
+
+                    var d = date + (7 + getDayIndex(day_mix[j].charAt(0)) - getDayOfWeek(date)) % 7
+                    //1日を基準にして曜日の差分で時間を戻し、最大５週までの増加させて毎週を表現
+                    for (var week = 0; week < 5; week++) {
+                        //年末年始のずらしの対応
+                        //休止期間なら、今後の日程を１週間ずらす
+                        if (areaObj.isBlankDay(d)) {
+                            if (WeekShift) {
+                                isShift = true;
+                            } else {
+                                continue;
+                            }
+                        }
+                        if (isShift) {
+                            d = d + 7;
+                        }
+                        //同じ月の時のみ処理したい
+                        if (getMonthOfDays(d) != (month - 1) % 12) {
+                            continue;
+                        }
+                        //特定の週のみ処理する
+                        if ((day_mix[j].length == 1) ||
+                            ((day_mix[j].length > 1) &&
+                            !((week != day_mix[j].charAt(1) - 1) || ("*" == day_mix[j].charAt(0)))))
+                            day_list.push(d);
+                        d += 7;
+                    }
+                }
+            } else if (this.regularFlg == "2") {
+                //隔週、4週間毎に対応、一応先付けの収集日設定にも対応
+                var dm = day_mix[j].split('w');
+                var peoriod = parseInt(dm[0].substr(1))
+                var startday = getDays(parseInt(dm[1].substr(0, 4)),
+                    parseInt(dm[1].substr(4, 2)) - 1,
+                    parseInt(dm[1].substr(6, 2)));
+                var day = DateToDays(today);
+                if (areaObj.isBlankDay(day)) 
+                    day = areaObj.center.endDate + 1;
+
+                var weeks = Math.floor((day - startday) / 7);
+                if (WeekShift) {
+                    if (day > startday)
+                        weeks -= areaObj.isInPeoriod(startday, day) ? areaObj.numberofDay(getDayOfWeek(startday)) : 0;
+                    else
+                        weeks += areaObj.isInPeoriod(startday, day) ? areaObj.numberofDay(getDayOfWeek(startday)) : 0;
+                }
+                weeks = ((weeks % peoriod) + peoriod) % peoriod;
+                var d = (day - startday) % 7;
+                var d = ((day - startday) % 7 + 7) % 7;
+                if (weeks == 0 && d == 0)
+                {
+                    day_list.push(day);
+                    break;
+                    
+                }
+                if (d != 0) {
+                    day += 7 - d;
+                    weeks += (WeekShift && areaObj.isBlankDay(day)) ? 0 : 1;
+                }
+                if (weeks == peoriod) {
+                    if (!areaObj.isBlankDay(day)) {
+                        day_list.push(day);
+                        break;
+                    }
+                    else
+                        weeks = 0;
+                }
+                while (true)
+                {
+                    day += 7;
+                    weeks += (WeekShift && areaObj.isBlankDay(day)) ? 0 : 1;
+                    if (weeks == peoriod) {
+                        if (!areaObj.isBlankDay(day)) {
+                            day_list.push(day);
+                            break;
+                        }
+                        else
+                            weeks = 0;
+                    }
+                }
+            }
         }
-      }
     } else {
-      // 不定期回収の場合は、そのまま指定された日付をセットする
-      for (var j in day_mix) {
-        var year = parseInt(day_mix[j].substr(0, 4));
-        var month = parseInt(day_mix[j].substr(4, 2)) - 1;
-        var day = parseInt(day_mix[j].substr(6, 2));
-        var d = new Date(year, month, day);
-        day_list.push(d);
-      }
+        // 不定期回収の場合は、そのまま指定された日付をセットする
+        for (var j in day_mix) {
+            var year = parseInt(day_mix[j].substr(0, 4));
+            var month = parseInt(day_mix[j].substr(4, 2)) - 1;
+            var day = parseInt(day_mix[j].substr(6, 2));
+            var d = getDays(year, month, day);
+            day_list.push(d);
+        }
     }
+
     //曜日によっては日付順ではないので最終的にソートする。
     //ソートしなくてもなんとなりそうな気もしますが、とりあえずソート
     day_list.sort(function(a, b) {
